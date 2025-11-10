@@ -57,21 +57,33 @@ jobs:
           
           # Run tests with detailed output
           npx playwright test --config=playwright.config.ts --workers=1 --reporter=list,html,json
+          TEST_EXIT_CODE=$?
           
           # Store test result
-          echo "status=$?" >> $GITHUB_OUTPUT
+          echo "e2e_status=$TEST_EXIT_CODE" >> $GITHUB_OUTPUT
           
-          echo "E2E tests completed"
+          echo "E2E tests completed with exit code: $TEST_EXIT_CODE"
           
-          # Count test results
-          if [[ -f test-results/e2e-results.json ]]; then
+          # Process test results
+          if [[ -f test-results/results.json ]]; then
             echo "Test Statistics:"
-            jq -r '
-              "Total Tests: \(.stats.total)",
-              "Passed: \(.stats.passed)",
-              "Failed: \(.stats.failed)",
-              "Skipped: \(.stats.skipped)"
-            ' test-results/e2e-results.json
+            TOTAL=$(jq -r '.stats.total' test-results/results.json)
+            PASSED=$(jq -r '.stats.passed' test-results/results.json)
+            FAILED=$(jq -r '.stats.failed' test-results/results.json)
+            SKIPPED=$(jq -r '.stats.skipped' test-results/results.json)
+            
+            echo "Total Tests: $TOTAL"
+            echo "Passed: $PASSED"
+            echo "Failed: $FAILED"
+            echo "Skipped: $SKIPPED"
+            
+            # Set outputs for use in final status check
+            echo "total=$TOTAL" >> $GITHUB_OUTPUT
+            echo "passed=$PASSED" >> $GITHUB_OUTPUT
+            echo "failed=$FAILED" >> $GITHUB_OUTPUT
+          else
+            echo "Warning: Test results file not found"
+            exit 1
           fi
         env:
           CI: true
@@ -88,16 +100,67 @@ jobs:
           
           # Verify server health
           echo "Verifying server health..."
-          curl -v http://localhost:3000/health
+          if ! curl -s -f http://localhost:3000/health; then
+            echo "Error: API server is not healthy"
+            exit 1
+          fi
           
           # Run API tests
           echo "Running API tests..."
           npx playwright test --config=playwright.api.config.ts --workers=1 --reporter=list,html,json
+          TEST_EXIT_CODE=$?
           
           # Store test result
-          echo "status=$?" >> $GITHUB_OUTPUT
+          echo "api_status=$TEST_EXIT_CODE" >> $GITHUB_OUTPUT
           
-          echo "API tests completed"
+          echo "API tests completed with exit code: $TEST_EXIT_CODE"
+          
+          # Process API test results
+          if [[ -f test-results/results.json ]]; then
+            echo "API Test Statistics:"
+            API_TOTAL=$(jq -r '.stats.total' test-results/results.json)
+            API_PASSED=$(jq -r '.stats.passed' test-results/results.json)
+            API_FAILED=$(jq -r '.stats.failed' test-results/results.json)
+            
+            echo "Total API Tests: $API_TOTAL"
+            echo "Passed: $API_PASSED"
+            echo "Failed: $API_FAILED"
+            
+            # Set outputs for use in final status check
+            echo "api_total=$API_TOTAL" >> $GITHUB_OUTPUT
+            echo "api_passed=$API_PASSED" >> $GITHUB_OUTPUT
+            echo "api_failed=$API_FAILED" >> $GITHUB_OUTPUT
+          else
+            echo "Warning: API test results file not found"
+            exit 1
+          fi
+
+      - name: Check test results
+        if: always()
+        run: |
+          echo "Checking final test results..."
+          
+          # Check E2E test results
+          E2E_STATUS="${{ steps.e2e.outputs.e2e_status }}"
+          E2E_FAILED="${{ steps.e2e.outputs.failed }}"
+          
+          # Check API test results
+          API_STATUS="${{ steps.api.outputs.api_status }}"
+          API_FAILED="${{ steps.api.outputs.api_failed }}"
+          
+          # Print summary
+          echo "=== Test Summary ==="
+          echo "E2E Tests Status: $E2E_STATUS (Failed tests: $E2E_FAILED)"
+          echo "API Tests Status: $API_STATUS (Failed tests: $API_FAILED)"
+          
+          # Determine final workflow status
+          if [[ "$E2E_STATUS" != "0" ]] || [[ "$API_STATUS" != "0" ]] || [[ "$E2E_FAILED" != "0" ]] || [[ "$API_FAILED" != "0" ]]; then
+            echo "Error: Some tests failed!"
+            exit 1
+          else
+            echo "Success: All tests passed!"
+            exit 0
+          fi
           
           # Count test results
           if [[ -f test-results/api-results.json ]]; then

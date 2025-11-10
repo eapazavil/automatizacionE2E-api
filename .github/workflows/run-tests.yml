@@ -42,7 +42,8 @@ jobs:
       - name: Run E2E tests
         run: |
           echo "Running E2E tests..."
-          npx playwright test --config=playwright.config.ts --workers=1
+          echo "Using BASE_URL: $BASE_URL"
+          npx playwright test --config=playwright.config.ts --workers=1 --debug
         env:
           CI: true
           BASE_URL: https://www.saucedemo.com
@@ -50,10 +51,14 @@ jobs:
       - name: Run API tests
         run: |
           echo "Running API tests..."
-          npx playwright test --config=playwright.api.config.ts --workers=1
+          echo "Using API_BASE_URL: $API_BASE_URL"
+          echo "Verifying server status..."
+          curl -v http://localhost:3000/api/products || true
+          npx playwright test --config=playwright.api.config.ts --workers=1 --debug
         env:
           CI: true
           API_BASE_URL: http://localhost:3000
+          DEBUG: pw:api*
           
       - name: Upload test results
         if: always()

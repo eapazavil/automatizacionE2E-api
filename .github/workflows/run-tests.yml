@@ -31,28 +31,37 @@ jobs:
           echo "BASE_URL=https://www.saucedemo.com" >> .env
           echo "VALID_USERNAME=standard_user" >> .env
           echo "VALID_PASSWORD=secret_sauce" >> .env
-          echo "API_BASE_URL=https://www.saucedemo.com/api" >> .env
+          echo "API_BASE_URL=http://localhost:3000" >> .env
 
-      - name: Install Playwright browsers
-        run: npx playwright install --with-deps chromium
-        
       - name: Start test server
         run: |
           npm run start &
           echo "Waiting for server to start..."
-          npx wait-on http://localhost:3000 -t 30000
+          npx wait-on tcp:3000 -t 30000
           
       - name: Run E2E tests
-        run: npx playwright test --config=playwright.config.ts
+        run: |
+          echo "Running E2E tests..."
+          npx playwright test --config=playwright.config.ts --workers=1
         env:
           CI: true
           BASE_URL: https://www.saucedemo.com
           
       - name: Run API tests
-        run: npx playwright test --config=playwright.api.config.ts
+        run: |
+          echo "Running API tests..."
+          npx playwright test --config=playwright.api.config.ts --workers=1
         env:
           CI: true
           API_BASE_URL: http://localhost:3000
+          
+      - name: Upload test results
+        if: always()
+        uses: actions/upload-artifact@v3
+        with:
+          name: playwright-report
+          path: playwright-report/
+          retention-days: 30
           
       - name: Upload test results
         if: always()

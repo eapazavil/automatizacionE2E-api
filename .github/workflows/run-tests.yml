@@ -101,9 +101,18 @@ jobs:
           echo "=== Test Execution Summary ==="
           echo "E2E Tests: ${{ steps.e2e.outcome }}"
           echo "API Tests: ${{ steps.api.outcome }}"
-          if [[ -f playwright-report/index.html ]]; then
-            echo "Detailed HTML report is available in artifacts"
+          
+          if [[ -f test-results/e2e-results.json ]]; then
+            echo "E2E Test Details:"
+            cat test-results/e2e-results.json | jq -r '.suites[].specs[].tests[] | "  - \(.title): \(.status)"'
           fi
+          
+          if [[ -f test-results/api-results.json ]]; then
+            echo "API Test Details:"
+            cat test-results/api-results.json | jq -r '.suites[].specs[].tests[] | "  - \(.title): \(.status)"'
+          fi
+          
+          echo "Detailed HTML reports are available in artifacts"
           
       - name: Upload test results
         if: always()

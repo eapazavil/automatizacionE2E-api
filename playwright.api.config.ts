@@ -11,14 +11,19 @@ const config: PlaywrightTestConfig = {
   },
   reporter: [
     ['list'],
-    ['html', { open: 'never' }]
+    ['html', { open: 'never' }],
+    ['json', { outputFile: 'test-results/api-results.json' }]
   ],
   workers: 1,
   retries: process.env.CI ? 2 : 0,
   timeout: 30000,
   testMatch: '**/*.test.ts',
   globalSetup: './tests/api/global-setup.ts',
-  globalTeardown: './tests/api/global-teardown.ts'
+  globalTeardown: './tests/api/global-teardown.ts',
+  expect: {
+    timeout: 10000
+  },
+  outputDir: 'test-results'
 };
 
 export default config;

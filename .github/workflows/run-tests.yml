@@ -33,20 +33,26 @@ jobs:
           echo "VALID_PASSWORD=secret_sauce" >> .env
           echo "API_BASE_URL=https://www.saucedemo.com/api" >> .env
 
+      - name: Install Playwright browsers
+        run: npx playwright install --with-deps chromium
+        
       - name: Start test server
         run: |
-          node server/server.js &
-          sleep 5  # Esperar a que el servidor esté listo
-
+          npm run start &
+          echo "Waiting for server to start..."
+          npx wait-on http://localhost:3000 -t 30000
+          
       - name: Run E2E tests
         run: npx playwright test --config=playwright.config.ts
         env:
           CI: true
+          BASE_URL: https://www.saucedemo.com
           
       - name: Run API tests
         run: npx playwright test --config=playwright.api.config.ts
         env:
           CI: true
+          API_BASE_URL: http://localhost:3000
           
       - name: Upload test results
         if: always()

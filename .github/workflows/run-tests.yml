@@ -35,30 +35,53 @@ jobs:
 
       - name: Start test server
         run: |
-          npm run start &
+          echo "Starting test server..."
+          npm run start > server.log 2>&1 &
           echo "Waiting for server to start..."
-          npx wait-on tcp:3000 -t 30000
+          npx wait-on -t 30000 http://localhost:3000/health
+          echo "Server is ready!"
           
       - name: Run E2E tests
+        id: e2e
+        continue-on-error: true
         run: |
           echo "Running E2E tests..."
-          echo "Using BASE_URL: $BASE_URL"
-          npx playwright test --config=playwright.config.ts --workers=1 --debug
+          echo "Using BASE_URL: https://www.saucedemo.com"
+          npx playwright test --config=playwright.config.ts --workers=1
         env:
           CI: true
           BASE_URL: https://www.saucedemo.com
           
       - name: Run API tests
+        id: api
+        continue-on-error: true
         run: |
           echo "Running API tests..."
-          echo "Using API_BASE_URL: $API_BASE_URL"
-          echo "Verifying server status..."
-          curl -v http://localhost:3000/api/products || true
-          npx playwright test --config=playwright.api.config.ts --workers=1 --debug
+          echo "Verifying server health..."
+          curl -v http://localhost:3000/health
+          echo "Running API tests with local server..."
+          npx playwright test --config=playwright.api.config.ts --workers=1
         env:
           CI: true
           API_BASE_URL: http://localhost:3000
           DEBUG: pw:api*
+          
+      - name: Check test results
+        if: always()
+        run: |
+          echo "E2E Tests Status: ${{ steps.e2e.outcome }}"
+          echo "API Tests Status: ${{ steps.api.outcome }}"
+          if [[ "${{ steps.e2e.outcome }}" == "failure" || "${{ steps.api.outcome }}" == "failure" ]]; then
+            echo "::error::Tests failed! Check the logs for details."
+            exit 1
+          fi
+          
+      - name: Upload server logs
+        if: always()
+        uses: actions/upload-artifact@v3
+        with:
+          name: server-logs
+          path: server.log
           
       - name: Upload test results
         if: always()

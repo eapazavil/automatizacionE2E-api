@@ -53,10 +53,14 @@ jobs:
           echo "=== Running E2E Tests ==="
           echo "Environment: ${{ env.CI }}"
           echo "Base URL: https://www.saucedemo.com"
+          
+          # Crear directorios necesarios
           mkdir -p test-results
+          mkdir -p playwright-report
+          mkdir -p coverage
           
           # Run tests with detailed output
-          npx playwright test --config=playwright.config.ts --workers=1 --reporter=list,html,json
+          npx playwright test --config=playwright.config.ts --workers=1
           TEST_EXIT_CODE=$?
           
           # Store test result
@@ -65,7 +69,7 @@ jobs:
           echo "E2E tests completed with exit code: $TEST_EXIT_CODE"
           
           # Process test results
-          if [[ -f test-results/results.json ]]; then
+          if [[ -f test-results/e2e-results.json ]]; then
             echo "Test Statistics:"
             TOTAL=$(jq -r '.stats.total' test-results/results.json)
             PASSED=$(jq -r '.stats.passed' test-results/results.json)
@@ -107,7 +111,7 @@ jobs:
           
           # Run API tests
           echo "Running API tests..."
-          npx playwright test --config=playwright.api.config.ts --workers=1 --reporter=list,html,json
+          npx playwright test --config=playwright.api.config.ts --workers=1
           TEST_EXIT_CODE=$?
           
           # Store test result
@@ -282,6 +286,6 @@ jobs:
         uses: dorny/test-reporter@v1
         with:
           name: Test Results
-          path: "test-results/results.json,playwright-report/**/*.json"
-          reporter: java-junit
+          path: "test-results/e2e-results.json"
+          reporter: json
           fail-on-error: false

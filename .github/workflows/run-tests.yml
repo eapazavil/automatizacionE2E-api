@@ -23,6 +23,8 @@ jobs:
 
       - name: Install dependencies
         run: |
+          sudo apt-get update
+          sudo apt-get install -y jq
           npm ci
           npx playwright install --with-deps chromium
 
@@ -48,10 +50,29 @@ jobs:
         id: e2e
         continue-on-error: true
         run: |
-          echo "Running E2E tests..."
-          echo "Using BASE_URL: https://www.saucedemo.com"
-          npx playwright test --config=playwright.config.ts --workers=1 --reporter=list,html
+          echo "=== Running E2E Tests ==="
+          echo "Environment: ${{ env.CI }}"
+          echo "Base URL: https://www.saucedemo.com"
+          mkdir -p test-results
+          
+          # Run tests with detailed output
+          npx playwright test --config=playwright.config.ts --workers=1 --reporter=list,html,json
+          
+          # Store test result
+          echo "status=$?" >> $GITHUB_OUTPUT
+          
           echo "E2E tests completed"
+          
+          # Count test results
+          if [[ -f test-results/e2e-results.json ]]; then
+            echo "Test Statistics:"
+            jq -r '
+              "Total Tests: \(.stats.total)",
+              "Passed: \(.stats.passed)",
+              "Failed: \(.stats.failed)",
+              "Skipped: \(.stats.skipped)"
+            ' test-results/e2e-results.json
+          fi
         env:
           CI: true
           BASE_URL: https://www.saucedemo.com
@@ -62,12 +83,32 @@ jobs:
         id: api
         continue-on-error: true
         run: |
-          echo "Running API tests..."
+          echo "=== Running API Tests ==="
+          echo "Environment: ${{ env.CI }}"
+          
+          # Verify server health
           echo "Verifying server health..."
           curl -v http://localhost:3000/health
-          echo "Running API tests with local server..."
-          npx playwright test --config=playwright.api.config.ts --workers=1 --reporter=list,html
+          
+          # Run API tests
+          echo "Running API tests..."
+          npx playwright test --config=playwright.api.config.ts --workers=1 --reporter=list,html,json
+          
+          # Store test result
+          echo "status=$?" >> $GITHUB_OUTPUT
+          
           echo "API tests completed"
+          
+          # Count test results
+          if [[ -f test-results/api-results.json ]]; then
+            echo "Test Statistics:"
+            jq -r '
+              "Total Tests: \(.stats.total)",
+              "Passed: \(.stats.passed)",
+              "Failed: \(.stats.failed)",
+              "Skipped: \(.stats.skipped)"
+            ' test-results/api-results.json
+          fi
         env:
           CI: true
           API_BASE_URL: http://localhost:3000
@@ -95,24 +136,50 @@ jobs:
             server.log
           retention-days: 30
 
-      - name: Show test summary
+      - name: Generate test summary
         if: always()
         run: |
-          echo "=== Test Execution Summary ==="
-          echo "E2E Tests: ${{ steps.e2e.outcome }}"
-          echo "API Tests: ${{ steps.api.outcome }}"
+          echo "=== Test Execution Summary ===" > test-summary.md
+          echo "### E2E Tests" >> test-summary.md
+          echo "Status: ${{ steps.e2e.outcome }}" >> test-summary.md
+          echo "Exit Code: ${{ steps.e2e.outputs.status }}" >> test-summary.md
+          echo "" >> test-summary.md
           
           if [[ -f test-results/e2e-results.json ]]; then
-            echo "E2E Test Details:"
-            cat test-results/e2e-results.json | jq -r '.suites[].specs[].tests[] | "  - \(.title): \(.status)"'
+            echo "#### E2E Test Details:" >> test-summary.md
+            jq -r '.suites[].specs[].tests[] | "- \(.title): \(.status)"' test-results/e2e-results.json >> test-summary.md
+            echo "" >> test-summary.md
+            echo "#### E2E Statistics:" >> test-summary.md
+            jq -r '"- Total: \(.stats.total)\n- Passed: \(.stats.passed)\n- Failed: \(.stats.failed)\n- Skipped: \(.stats.skipped)"' test-results/e2e-results.json >> test-summary.md
           fi
+          
+          echo "" >> test-summary.md
+          echo "### API Tests" >> test-summary.md
+          echo "Status: ${{ steps.api.outcome }}" >> test-summary.md
+          echo "Exit Code: ${{ steps.api.outputs.status }}" >> test-summary.md
+          echo "" >> test-summary.md
           
           if [[ -f test-results/api-results.json ]]; then
-            echo "API Test Details:"
-            cat test-results/api-results.json | jq -r '.suites[].specs[].tests[] | "  - \(.title): \(.status)"'
+            echo "#### API Test Details:" >> test-summary.md
+            jq -r '.suites[].specs[].tests[] | "- \(.title): \(.status)"' test-results/api-results.json >> test-summary.md
+            echo "" >> test-summary.md
+            echo "#### API Statistics:" >> test-summary.md
+            jq -r '"- Total: \(.stats.total)\n- Passed: \(.stats.passed)\n- Failed: \(.stats.failed)\n- Skipped: \(.stats.skipped)"' test-results/api-results.json >> test-summary.md
           fi
           
-          echo "Detailed HTML reports are available in artifacts"
+          echo "" >> test-summary.md
+          echo "### Reports" >> test-summary.md
+          echo "- Detailed HTML reports are available in artifacts" >> test-summary.md
+          echo "- Test results and logs are available for download" >> test-summary.md
+          
+          cat test-summary.md
+
+      - name: Upload test summary
+        if: always()
+        uses: actions/upload-artifact@v3
+        with:
+          name: test-summary
+          path: test-summary.md
           
       - name: Upload test results
         if: always()

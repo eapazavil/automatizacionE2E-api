@@ -1,0 +1,25 @@
+{
+  "type": "array",
+  "items": {
+    "type": "object",
+    "properties": {
+      "id": {
+        "type": "number"
+      },
+      "name": {
+        "type": "string"
+      },
+      "desc": {
+        "type": "string"
+      },
+      "price": {
+        "type": "number"
+      },
+      "image_url": {
+        "type": "string"
+      }
+    },
+    "required": ["id", "name", "desc", "price", "image_url"]
+  },
+  "minItems": 1
+}

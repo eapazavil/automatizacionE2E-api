@@ -1,0 +1,74 @@
+name: E2E and API Tests
+
+on:
+  push:
+    branches:
+      - main
+      - master
+  workflow_dispatch:  # Permite la ejecución manual desde la UI de GitHub
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: '18'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: |
+          npm ci
+          npx playwright install --with-deps chromium
+
+      - name: Create env file
+        run: |
+          echo "BASE_URL=https://www.saucedemo.com" >> .env
+          echo "VALID_USERNAME=standard_user" >> .env
+          echo "VALID_PASSWORD=secret_sauce" >> .env
+          echo "API_BASE_URL=https://www.saucedemo.com/api" >> .env
+
+      - name: Run E2E Tests
+        run: npm run test:e2e
+        env:
+          CI: true
+
+      - name: Run API Tests
+        run: npm run test:api
+        env:
+          CI: true
+
+      - name: Upload Cucumber HTML Report
+        if: always()
+        uses: actions/upload-artifact@v3
+        with:
+          name: cucumber-report
+          path: cucumber-report.html
+
+      - name: Upload Playwright Screenshots
+        if: failure()
+        uses: actions/upload-artifact@v3
+        with:
+          name: playwright-screenshots
+          path: test-results/
+
+      - name: Generate and Upload Coverage Report
+        if: always()
+        uses: actions/upload-artifact@v3
+        with:
+          name: coverage-report
+          path: coverage/
+
+      - name: Publish Test Results
+        if: always()
+        uses: dorny/test-reporter@v1
+        with:
+          name: Test Results
+          path: "cucumber-report.json,playwright-report/*.json"
+          reporter: jest-json
+          fail-on-error: false

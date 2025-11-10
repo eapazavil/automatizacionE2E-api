@@ -4,15 +4,21 @@ test.describe('Products API Tests', () => {
   let authToken: string;
 
   test.beforeEach(async ({ apiContext }) => {
-    // Obtener token de autenticación
-    const loginResponse = await apiContext.post('/login', {
-      data: {
-        username: 'standard_user',
-        password: 'secret_sauce'
-      }
-    });
-    const loginBody = await loginResponse.json();
-    authToken = loginBody.token;
+    try {
+      // Obtener token de autenticación con retry
+      const loginResponse = await apiContext.post('/login', {
+        data: {
+          username: 'standard_user',
+          password: 'secret_sauce'
+        }
+      });
+      
+      expect(loginResponse.status()).toBe(200, 'Login request failed');
+      
+      const loginBody = await loginResponse.json();
+      expect(loginBody.token).toBeTruthy('No token received in login response');
+      
+      authToken = loginBody.token;
   });
 
   test('GET /products - returns non-empty list of products', async ({ apiContext, validateJsonSchema }) => {

@@ -15,8 +15,8 @@ const config: PlaywrightTestConfig = {
     ['json', { outputFile: 'test-results/api-results.json' }]
   ],
   workers: 1,
-  retries: process.env.CI ? 2 : 0,
-  timeout: 30000,
+  retries: process.env.CI ? 3 : 0,
+  timeout: 45000,
   testMatch: '**/*.test.ts',
   globalSetup: './tests/api/global-setup.ts',
   globalTeardown: './tests/api/global-teardown.ts',

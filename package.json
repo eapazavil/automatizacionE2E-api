@@ -3,11 +3,12 @@
   "version": "1.0.0",
   "description": "E2E and API tests for SauceDemo application using Screenplay pattern",
   "scripts": {
-    "test:e2e": "cucumber-js --format json:cucumber-report.json --format html:cucumber-report.html",
-    "test:api": "playwright test tests/api/*.test.ts --reporter=json,html",
-    "test": "npm run test:e2e && npm run test:api",
+    "start": "node server/server.js",
+    "test:e2e": "playwright test tests/e2e/*.spec.ts --reporter=html",
+    "test:api": "playwright test tests/api/*.test.ts --reporter=html",
+    "test": "playwright test",
     "pretest": "npm install",
-    "posttest": "npm run generate-report"
+    "posttest": "echo 'Tests completed'"
   },
   "dependencies": {
     "@cucumber/cucumber": "^10.0.1",

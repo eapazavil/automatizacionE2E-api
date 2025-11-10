@@ -35,16 +35,11 @@ jobs:
 
       - name: Start test server
         run: |
-          npm run start &
+          node server/server.js &
           sleep 5  # Esperar a que el servidor esté listo
 
-      - name: Run E2E Tests
-        run: npm run test:e2e
-        env:
-          CI: true
-
-      - name: Run API Tests
-        run: npm run test:api
+      - name: Run all tests
+        run: npm test
         env:
           CI: true
 

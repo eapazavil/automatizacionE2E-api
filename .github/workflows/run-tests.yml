@@ -33,6 +33,9 @@ jobs:
           echo "VALID_PASSWORD=secret_sauce" >> .env
           echo "API_BASE_URL=http://localhost:3000" >> .env
 
+      - name: Install Playwright Browsers
+        run: npx playwright install --with-deps
+        
       - name: Start test server
         run: |
           echo "Starting test server..."
@@ -47,10 +50,13 @@ jobs:
         run: |
           echo "Running E2E tests..."
           echo "Using BASE_URL: https://www.saucedemo.com"
-          npx playwright test --config=playwright.config.ts --workers=1
+          npx playwright test --config=playwright.config.ts --workers=1 --reporter=list,html
+          echo "E2E tests completed"
         env:
           CI: true
           BASE_URL: https://www.saucedemo.com
+          VALID_USERNAME: standard_user
+          VALID_PASSWORD: secret_sauce
           
       - name: Run API tests
         id: api
@@ -60,11 +66,13 @@ jobs:
           echo "Verifying server health..."
           curl -v http://localhost:3000/health
           echo "Running API tests with local server..."
-          npx playwright test --config=playwright.api.config.ts --workers=1
+          npx playwright test --config=playwright.api.config.ts --workers=1 --reporter=list,html
+          echo "API tests completed"
         env:
           CI: true
           API_BASE_URL: http://localhost:3000
           DEBUG: pw:api*
+          NODE_ENV: test
           
       - name: Check test results
         if: always()
@@ -76,12 +84,26 @@ jobs:
             exit 1
           fi
           
-      - name: Upload server logs
+      - name: Upload test results and logs
         if: always()
         uses: actions/upload-artifact@v3
         with:
-          name: server-logs
-          path: server.log
+          name: test-results
+          path: |
+            playwright-report/
+            test-results/
+            server.log
+          retention-days: 30
+
+      - name: Show test summary
+        if: always()
+        run: |
+          echo "=== Test Execution Summary ==="
+          echo "E2E Tests: ${{ steps.e2e.outcome }}"
+          echo "API Tests: ${{ steps.api.outcome }}"
+          if [[ -f playwright-report/index.html ]]; then
+            echo "Detailed HTML report is available in artifacts"
+          fi
           
       - name: Upload test results
         if: always()

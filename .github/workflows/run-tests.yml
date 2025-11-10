@@ -5,7 +5,7 @@ on:
     branches:
       - main
       - master
-  workflow_dispatch:  # Permite la ejecución manual desde la UI de GitHub
+  workflow_dispatch:  # Permite la ejecución manual desde la UI de GitHub Actions
 
 jobs:
   test:
@@ -33,6 +33,11 @@ jobs:
           echo "VALID_PASSWORD=secret_sauce" >> .env
           echo "API_BASE_URL=https://www.saucedemo.com/api" >> .env
 
+      - name: Start test server
+        run: |
+          npm run start &
+          sleep 5  # Esperar a que el servidor esté listo
+
       - name: Run E2E Tests
         run: npm run test:e2e
         env:
@@ -43,11 +48,14 @@ jobs:
         env:
           CI: true
 
-      - name: Upload Cucumber HTML Report
+      - name: Upload test results
         if: always()
         uses: actions/upload-artifact@v3
         with:
-          name: cucumber-report
+          name: test-results
+          path: |
+            playwright-report/
+            test-results/
           path: cucumber-report.html
 
       - name: Upload Playwright Screenshots
